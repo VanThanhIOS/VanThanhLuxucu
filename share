@@ -1,0 +1,191 @@
+-- CLASSIC REALISTIC STORM
+-- LocalScript -> StarterPlayerScripts
+
+local Players = game:GetService("Players")
+local Lighting = game:GetService("Lighting")
+local TweenService = game:GetService("TweenService")
+local RunService = game:GetService("RunService")
+
+local player = Players.LocalPlayer
+
+--==================================================
+-- LIGHTING / CLASSIC COLOR
+--==================================================
+
+Lighting.GlobalShadows = true
+Lighting.Brightness = 1.2
+Lighting.ClockTime = 18.5
+Lighting.EnvironmentDiffuseScale = 0.45
+Lighting.EnvironmentSpecularScale = 0.2
+Lighting.FogStart = 30
+Lighting.FogEnd = 700
+Lighting.FogColor = Color3.fromRGB(65, 72, 82)
+
+-- Xóa effect cũ
+for _, v in ipairs(Lighting:GetChildren()) do
+	if v.Name:match("^Storm_") then
+		v:Destroy()
+	end
+end
+
+local color = Instance.new("ColorCorrectionEffect")
+color.Name = "Storm_Color"
+color.Brightness = -0.04
+color.Contrast = 0.22
+color.Saturation = -0.18
+color.TintColor = Color3.fromRGB(190, 205, 225)
+color.Parent = Lighting
+
+local bloom = Instance.new("BloomEffect")
+bloom.Name = "Storm_Bloom"
+bloom.Intensity = 0.2
+bloom.Size = 20
+bloom.Threshold = 1.3
+bloom.Parent = Lighting
+
+local atmosphere = Instance.new("Atmosphere")
+atmosphere.Name = "Storm_Atmosphere"
+atmosphere.Density = 0.38
+atmosphere.Offset = 0.15
+atmosphere.Color = Color3.fromRGB(105, 115, 130)
+atmosphere.Decay = Color3.fromRGB(45, 50, 60)
+atmosphere.Glare = 0
+atmosphere.Haze = 2
+atmosphere.Parent = Lighting
+
+--==================================================
+-- RAIN
+--==================================================
+
+local rainFolder = Instance.new("Folder")
+rainFolder.Name = "Storm_Rain"
+rainFolder.Parent = workspace
+
+local function createRain(character)
+	local root = character:WaitForChild("HumanoidRootPart")
+
+	-- Attachment phía trên nhân vật
+	local attachment = Instance.new("Attachment")
+	attachment.Name = "RainAttachment"
+	attachment.Position = Vector3.new(0, 25, 0)
+	attachment.Parent = root
+
+	local rain = Instance.new("ParticleEmitter")
+	rain.Name = "Rain"
+	rain.Texture = "rbxasset://textures/particles/sparkles_main.dds"
+
+	rain.Rate = 900
+	rain.Lifetime = NumberRange.new(0.35, 0.55)
+	rain.Speed = NumberRange.new(70, 95)
+	rain.SpreadAngle = Vector2.new(8, 8)
+
+	rain.Size = NumberSequence.new({
+		NumberSequenceKeypoint.new(0, 0.035),
+		NumberSequenceKeypoint.new(1, 0.015)
+	})
+
+	rain.Transparency = NumberSequence.new({
+		NumberSequenceKeypoint.new(0, 0.25),
+		NumberSequenceKeypoint.new(1, 0.75)
+	})
+
+	rain.Color = ColorSequence.new(
+		Color3.fromRGB(185, 205, 225)
+	)
+
+	rain.Acceleration = Vector3.new(0, -20, 0)
+	rain.LockedToPart = false
+
+	rain.Parent = attachment
+
+	return attachment
+end
+
+local character = player.Character or player.CharacterAdded:Wait()
+local rainAttachment = createRain(character)
+
+player.CharacterAdded:Connect(function(char)
+	if rainAttachment then
+		rainAttachment:Destroy()
+	end
+
+	rainAttachment = createRain(char)
+end)
+
+--==================================================
+-- LIGHTNING
+--==================================================
+
+local lightningBusy = false
+
+local function lightning()
+	if lightningBusy then return end
+	lightningBusy = true
+
+	-- Chớp sáng toàn màn hình bằng Lighting
+	local oldBrightness = Lighting.Brightness
+	local oldColor = color.Brightness
+
+	for i = 1, 3 do
+		Lighting.Brightness = 4
+		color.Brightness = 0.25
+
+		task.wait(0.05)
+
+		Lighting.Brightness = oldBrightness
+		color.Brightness = oldColor
+
+		task.wait(0.04)
+	end
+
+	-- Ánh sáng chớp trong thế giới
+	local root = player.Character
+		and player.Character:FindFirstChild("HumanoidRootPart")
+
+	if root then
+		local flash = Instance.new("PointLight")
+		flash.Name = "Storm_Lightning"
+		flash.Color = Color3.fromRGB(210, 225, 255)
+		flash.Brightness = 12
+		flash.Range = 80
+		flash.Shadows = true
+		flash.Parent = root
+
+		task.delay(0.12, function()
+			if flash then
+				flash:Destroy()
+			end
+		end)
+	end
+
+	lightningBusy = false
+end
+
+--==================================================
+-- RANDOM STORM
+--==================================================
+
+task.spawn(function()
+	while true do
+		task.wait(math.random(5, 12))
+
+		lightning()
+
+		-- Gợi ý âm thanh sấm:
+		-- Có thể thêm Sound trong Roblox Studio và
+		-- phát sau tia chớp để tạo tiếng sấm.
+	end
+end)
+
+--==================================================
+-- RAIN WIND
+--==================================================
+
+RunService.RenderStepped:Connect(function()
+	if rainAttachment then
+		local wind = math.sin(os.clock() * 1.5) * 3
+
+		rainAttachment.Orientation =
+			Vector3.new(-8, wind, 0)
+	end
+end)
